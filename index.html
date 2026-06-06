@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>校園咖啡與甜點坊</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>☕ 校園咖啡與甜點坊</h1>
+        <div id="cart-summary" onclick="toggleCart()" style="cursor: pointer;">
+            🛒 購物車 (<span id="cart-count">0</span>)
+        </div>
+    </header>
+    
+    <div class="category-tabs" style="display: flex; justify-content: center; gap: 15px; margin: 20px 0;">
+        <button class="tab-btn active" onclick="switchCategory('coffee')" style="padding: 10px 20px; font-size: 16px; font-weight: bold; cursor: pointer; background: #a07855; color: white; border: none; border-radius: 20px;">☕ 咖啡飲品</button>
+        <button class="tab-btn" onclick="switchCategory('dessert')" style="padding: 10px 20px; font-size: 16px; font-weight: bold; cursor: pointer; background: #eae1d4; color: #4a3728; border: none; border-radius: 20px;">🍰 甜點與輕食</button>
+    </div>
+
+    <main>
+        <div id="coffee-list-section">
+            <h2 class="category-title">☕ 咖啡飲品</h2>
+            <div id="coffee-list" class="grid-container"></div>
+        </div>
+
+        <div id="dessert-list-section" style="display: none;">
+            <h2 class="category-title">🍰 甜點與輕食</h2>
+            <div id="dessert-list" class="grid-container"></div>
+        </div>
+    </main>
+
+    <div id="cart-modal" class="modal" style="display:none;">
+        <div class="modal-content" style="padding-bottom: 24px; box-sizing: border-box;">
+            
+            <div id="view-cart">
+                <h3>🛒 購物車清單</h3>
+                <ul id="cart-items" style="list-style: none; padding: 0; margin-bottom: 15px;"></ul>
+                <p class="total-price">總金額: $<span id="cart-total">0</span></p>
+                <button class="checkout-btn" onclick="generateQR()">產生結帳 QR Code</button>
+                <button class="close-btn" onclick="toggleCart()" style="background:#6c757d; margin-bottom: 5px;">關閉</button>
+            </div>
+
+            <div id="view-qr" style="display:none; text-align: center;">
+                <h3>📱 請出示此畫面給櫃檯</h3>
+                
+                <div style="display: flex; justify-content: center; margin: 20px 0;">
+                    <img id="qr-image" src="" alt="結帳QRcode" style="width:200px; height:200px; border: 1px solid #ccc; padding: 5px; background: white; display: inline-block;">
+                </div>
+
+                <div style="background: #f8f9fa; border-radius: 8px; padding: 12px; margin-bottom: 15px;">
+                    <p style="margin: 0; color: #d9534f; font-weight: bold;">⚠️ 注意：本訂單尚未完成扣款</p>
+                    <p style="margin: 5px 0 0 0; font-size: 14px; color: #666;">請交給櫃檯人員輸入「商家確認碼」以完成點餐程序。</p>
+                </div>
+
+                <button class="checkout-btn" onclick="merchantVerify()" style="background:#28a745;">櫃檯人員確認點選</button>
+                <button class="close-btn" onclick="resetToCartView()" style="background:#6c757d; margin-top: 5px;">取消並返回購物車</button>
+            </div>
+
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    
+    <script src="app.js"></script>
+</body>
+</html>
