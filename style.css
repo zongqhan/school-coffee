@@ -50,3 +50,58 @@ button:hover { background: #5d4037; }
     background: #ccc;
     cursor: not-allowed;
 }
+
+/* =========================================
+   📱 手機版專屬優化 (當螢幕寬度小於 768px 時觸發)
+   ========================================= */
+@media screen and (max-width: 768px) {
+    /* 1. 調整頂部導覽列，讓標題跟購物車縮放適當 */
+    header {
+        flex-direction: column;
+        gap: 15px;
+        padding: 15px;
+        text-align: center;
+    }
+    
+    header h1 {
+        font-size: 22px;
+        margin: 0;
+    }
+
+    /* 2. 讓分類按鈕在手機上可以平均分配寬度 */
+    .category-tabs {
+        flex-wrap: wrap;
+        padding: 0 10px;
+    }
+    .tab-btn {
+        flex: 1; /* 均分寬度 */
+        font-size: 14px !important;
+        padding: 10px !important;
+        white-space: nowrap;
+    }
+
+    /* 3. 調整商品網格：在手機上變成單排大圖，或是稍微縮小間距的雙排 */
+    .grid-container {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); 
+        gap: 10px;
+        padding: 10px;
+    }
+
+    /* 4. 優化購物車側邊欄 (Modal) 在手機上的顯示比例 */
+    .modal {
+        width: 85%; /* 在手機上佔據多一點畫面，避免字被擠壓 */
+        max-width: 320px;
+    }
+
+    /* 5. 放大所有按鈕的點擊範圍 (對手指更友善) */
+    button {
+        min-height: 44px; /* iOS 人機介面指南建議的最小點擊高度 */
+        font-size: 16px;
+    }
+    
+    /* 6. 客製化數量的輸入框微調 */
+    .batch-qty-input {
+        width: 60px;
+        height: 30px;
+    }
+}
