@@ -100,3 +100,71 @@ function generateNewPin() {
         alert(`🔑 密碼已更新為：${newPin}，前台結帳將同步生效！`);
     });
 }
+
+// 🌟 新增：監聽雲端最新訂單
+database.ref('orders').on('value', (snapshot) => {
+    const ordersData = snapshot.val();
+    renderOrders(ordersData);
+});
+
+// 🌟 新增：渲染訂單畫面
+function renderOrders(ordersData) {
+    const container = document.getElementById('orders-container');
+    if (!container) return;
+    
+    if (!ordersData) {
+        container.innerHTML = '<p style="color: #7f8c8d; font-size: 14px;">目前尚無新訂單</p>';
+        return;
+    }
+
+    container.innerHTML = '';
+    // 轉換為陣列，並以時間排序 (舊的在前面，符合排隊出餐邏輯)
+    const ordersArray = Object.keys(ordersData).map(key => ({
+        firebaseKey: key,
+        ...ordersData[key]
+    })).sort((a, b) => a.id - b.id);
+
+    ordersArray.forEach(order => {
+        // 相同商品合併數量計算 (讓店家看起來比較舒服)
+        const itemCounts = {};
+        order.items.forEach(item => {
+            const key = `${item.name}-${item.ice}-${item.sugar}`;
+            if(itemCounts[key]) {
+                itemCounts[key].count++;
+            } else {
+                itemCounts[key] = { name: item.name, ice: item.ice, sugar: item.sugar, count: 1 };
+            }
+        });
+
+        const itemsHtml = Object.values(itemCounts).map(i => 
+            `<li style="margin-bottom: 5px; font-size: 15px;">
+                <strong>${i.name}</strong> 
+                <span style="color: #666; font-size: 13px;">(${i.ice}, ${i.sugar})</span> 
+                <span style="color: #e67e22; font-weight: bold;"> x ${i.count}</span>
+            </li>`
+        ).join('');
+
+        container.innerHTML += `
+            <div style="background: #fff; border: 2px solid #f1ebd9; padding: 15px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #f1ebd9; padding-bottom: 10px; margin-bottom: 10px;">
+                    <span style="font-weight: bold; color: #4a3728;">訂單號: #${order.id.toString().slice(-4)}</span>
+                    <span style="color: #888; font-size: 13px;">🕒 ${order.time}</span>
+                </div>
+                <ul style="margin: 0 0 15px 0; padding-left: 20px;">
+                    ${itemsHtml}
+                </ul>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: bold; color: #c0392b; font-size: 16px;">總金額: $${order.total}</span>
+                    <button onclick="completeOrder('${order.firebaseKey}')" style="background: #27ae60; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; margin: 0; width: auto;">✅ 標記完成並移除</button>
+                </div>
+            </div>
+        `;
+    });
+}
+
+// 🌟 新增：完成訂單並從雲端刪除
+function completeOrder(firebaseKey) {
+    if(confirm('餐點做完了嗎？確定要將此訂單結案並移除？')) {
+        database.ref('orders/' + firebaseKey).remove();
+    }
+}
