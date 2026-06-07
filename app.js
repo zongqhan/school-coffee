@@ -236,7 +236,7 @@ function generateQR() {
     document.getElementById('qr-image').src = qrUrl;
 }
 
-// 10. 商家端確認結帳機制（完美結合：預先解耦清空防重複扣減、完美關閉大白邊容器）
+// 10. 商家端確認結帳機制
 function merchantVerify() {
     database.ref('merchantPin').once('value').then((snapshot) => {
         const CURRENT_MERCHANT_PIN = snapshot.val() || "8888"; 
@@ -265,15 +265,23 @@ function merchantVerify() {
                     if (p) p.stock--;
                 });
 
-                // 【狀態預先解耦】：寫入雲端前立刻清空購物車，徹底修好重複扣減 Bug
+                // 🌟 【本次新增】：將結帳後的訂單資料獨立存入雲端訂單區
+                const newOrder = {
+                    id: Date.now(),
+                    time: new Date().toLocaleString('zh-TW', { hour12: false }),
+                    items: cart, // 包含品名、冰塊、甜度
+                    total: document.getElementById('cart-total').innerText
+                };
+                database.ref('orders').push(newOrder); // 推播到 Firebase
+
+                // 【狀態預先解耦】：寫入雲端前立刻清空購物車
                 cart = []; 
                 document.getElementById('cart-count').innerText = 0;
 
                 // 同步回 Firebase 實時資料庫
                 database.ref('coffeeMenu').set(menu).then(() => {
-                    alert("🎉 結帳成功！訂單已同步，庫存已安全更新。");
+                    alert("🎉 結帳成功！訂單已推播至店家後台，庫存已更新。");
                     
-                    // 【大白邊修復】：直接隱藏最外層側邊欄外殼
                     const cartModal = document.getElementById('cart-modal');
                     if (cartModal) {
                         cartModal.style.display = 'none';
