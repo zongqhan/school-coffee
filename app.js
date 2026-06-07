@@ -61,8 +61,6 @@ database.ref('coffeeMenu').on('value', (snapshot) => {
 // 3. 渲染商品畫面
 function renderProducts() {
     const menu = currentMenu; 
-    
-    // 🔍 修正：確實抓取 HTML 元素
     const coffeeList = document.getElementById('coffee-list');
     const dessertList = document.getElementById('dessert-list');
     
@@ -72,14 +70,42 @@ function renderProducts() {
     dessertList.innerHTML = '';
 
     menu.forEach(product => {
-        const isOutOfStock = product.stock <= 0;
+        // 算出該品項「目前在購物車被佔用」的數量
+        const inCartCount = cart.filter(item => item.id === product.id).length;
+        // 實體有效庫存 = 雲端剩餘數量 - 購物車佔用數量
+        const realAvailableStock = product.stock - inCartCount;
+        const isOutOfStock = realAvailableStock <= 0;
+
+        // 根據雲端後台設定，決定是否動態顯示客製化下拉選單
+        let iceSelectHtml = product.hasIce ? `
+            <select id="ice-${product.id}" style="padding:4px; margin:4px 0; font-size:13px; width:100%;">
+                <option value="正常冰">正常冰</option>
+                <option value="少冰">少冰</option>
+                <option value="去冰">去冰</option>
+                <option value="熱飲">熱飲</option>
+            </select>
+        ` : '';
+
+        let sugarSelectHtml = product.hasSugar ? `
+            <select id="sugar-${product.id}" style="padding:4px; margin:4px 0 0 0; font-size:13px; width:100%;">
+                <option value="正常糖">正常糖</option>
+                <option value="半糖">半糖</option>
+                <option value="微糖">微糖</option>
+                <option value="無糖">無糖</option>
+            </select>
+        ` : '';
+
         const html = `
             <div class="product-card">
                 <h3>${product.name}</h3>
                 <p class="price">$${product.price}</p>
-                <p>庫存: ${product.stock}</p>
+                <p style="font-size:13px; color:#7f8c8d;">雲端庫存: ${product.stock} (剩餘: ${realAvailableStock})</p>
+                <div style="margin: 8px 0;">
+                    ${iceSelectHtml}
+                    ${sugarSelectHtml}
+                </div>
                 <button ${isOutOfStock ? 'disabled' : ''} onclick="addToCart(${product.id})">
-                    ${isOutOfStock ? '已售完' : '加入購物車'}
+                    ${isOutOfStock ? '已售完/額滿' : '加入購物車'}
                 </button>
             </div>
         `;
@@ -135,47 +161,114 @@ function updateCartUI() {
     list.innerHTML = '';
     let total = 0;
 
-    cart.forEach(item => {
-        list.innerHTML += `<li>${item.name} - $${item.price}</li>`;
+    cart.forEach((item, index) => {
+        list.innerHTML += `
+            <li style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid #eee;">
+                <div>
+                    <span style="font-weight:bold;">${item.name}</span> <br>
+                    <span style="font-size:12px; color:#888;">(${item.customIce}, ${item.customSugar})</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span style="color:#a07855; font-weight:bold;">$${item.price}</span>
+                    <button onclick="removeFromCart(${index})" style="background:#e74c3c; color:white; width:auto; margin:0; padding:4px 8px; font-size:12px;">刪除</button>
+                </div>
+            </li>
+        `;
         total += item.price;
     });
     totalEl.innerText = total;
 }
 
+function removeFromCart(index) {
+    cart.splice(index, 1); // 刪除該元素
+    document.getElementById('cart-count').innerText = cart.length;
+    updateCartUI();      // 刷新購物車清單
+    renderProducts();   // 刷新外圍主畫面的「剩餘庫存計算」
+}
+
 // 7. 加入購物車
 function addToCart(productId) {
-    const menu = currentMenu; 
-    const product = menu.find(p => p.id === productId);
+    const product = currentMenu.find(p => p.id === productId);
     
-    if (product.stock <= 0) {
-        alert("非常抱歉，該商品已無庫存！");
+    // 安全過濾：算出該商品目前已經在購物車被拿了幾件
+    const alreadyInCart = cart.filter(item => item.id === productId).length;
+    
+    if (alreadyInCart >= product.stock) {
+        alert(`❌ 搶購失敗！目前雲端剩餘數量僅剩 ${product.stock} 件，您的購物車已達上限。`);
         return;
     }
-    cart.push(product);
+
+    // 讀取動態客製化選單（如果後台有關閉，則填入預設值）
+    const iceEl = document.getElementById(`ice-${productId}`);
+    const sugarEl = document.getElementById(`sugar-${productId}`);
+    const iceSelection = iceEl ? iceEl.value : "固定冰量";
+    const sugarSelection = sugarEl ? sugarEl.value : "固定甜度";
+
+    // 將資料打包送入暫存區
+    cart.push({
+        id: product.id,
+        name: product.name,
+        price: product.price,
+        category: product.category,
+        customIce: iceSelection,
+        customSugar: sugarSelection
+    });
+
     document.getElementById('cart-count').innerText = cart.length;
-    alert(`已加入: ${product.name}`);
+    alert(`已成功加入購物車：${product.name} (${iceSelection} / ${sugarSelection})`);
+    renderProducts(); // 立刻即時同步扣減前台暫存顯示
 }
 
 // 8. 內部結帳扣庫存（全面改為推播至雲端）
 function checkout() {
     if (cart.length === 0) return;
     
-    let menu = [...currentMenu]; // 複製一份目前的雲端資料
-    
-    // 依據購物車內容扣除庫存
-    cart.forEach(c => {
-        let p = menu.find(i => i.id === c.id);
-        if (p && p.stock > 0) p.stock--;
-    });
-    
-    // 🌟 將更新後的菜單直接推上 Firebase 雲端！
-    database.ref('coffeeMenu').set(menu).then(() => {
-        cart = []; // 清空購物車
-        const countEl = document.getElementById('cart-count');
-        if (countEl) countEl.innerText = 0;
-        // 注意：這裡不用呼叫 renderProducts()，因為上面的 .on('value') 監聽到資料改變，會自動幫我們重繪畫面！
-    }).catch(err => {
-        alert("結帳失敗，請檢查網路連線！");
+    // 1. 重新從雲端抓最新的菜單，避免結帳瞬間跟其他人衝突（Race Condition 防護機制）
+    database.ref('coffeeMenu').once('value').then((snapshot) => {
+        let menu = snapshot.val() || [];
+        let isStockValid = true;
+        let errorMessage = "";
+
+        // 2. 先行驗證所有人的庫存是否足夠
+        cart.forEach(c => {
+            let p = menu.find(i => i.id === c.id);
+            if (!p || p.stock <= 0) {
+                isStockValid = false;
+                errorMessage += `【${c.name}】庫存不足！\n`;
+            }
+        });
+
+        if (!isStockValid) {
+            alert("❌ 結帳遭到安全系統攔截：\n" + errorMessage + "請移出購物車後重新嘗試。");
+            return;
+        }
+
+        // 3. 驗證通過，執行庫存扣減
+        cart.forEach(c => {
+            let p = menu.find(i => i.id === c.id);
+            if (p) p.stock--;
+        });
+
+        // 4. 打包全新訂單，準備投遞至 Firebase 'orders' 節點
+        const total = parseInt(document.getElementById('cart-total').innerText);
+        const newOrder = {
+            timestamp: firebase.database.ServerValue.TIMESTAMP, // 伺服器時間戳記
+            items: cart,
+            totalPrice: total
+        };
+
+        // 5. 兩階段原子寫入：更新庫存並發送訂單
+        database.ref('coffeeMenu').set(menu).then(() => {
+            // 庫存更新成功後，在雲端建立訂單
+            return database.ref('orders').push(newOrder);
+        }).then(() => {
+            cart = []; // 清空前台暫存
+            const countEl = document.getElementById('cart-count');
+            if (countEl) countEl.innerText = 0;
+            alert("🎉 結帳成功！訂單已派發至後台，廚房將即時製作。");
+        }).catch(err => {
+            alert("雲端連線失敗，請檢查網路！");
+        });
     });
 }
 
