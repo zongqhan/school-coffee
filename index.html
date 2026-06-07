@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <title>校園咖啡與甜點坊</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        /* 數量輸入元件的美化樣式 */
+        .batch-qty-section { display: flex; align-items: center; justify-content: center; gap: 5px; margin: 8px 0; }
+        .batch-qty-input { width: 55px; text-align: center; padding: 4px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+    </style>
 </head>
 <body>
     <header>
@@ -35,7 +40,7 @@
             
             <div id="view-cart">
                 <h3>🛒 購物車清單</h3>
-                <ul id="cart-items" style="list-style: none; padding: 0;"></ul>
+                <ul id="cart-items" style="list-style: none; padding: 0; margin-bottom: 15px; max-height: 350px; overflow-y: auto;"></ul>
                 <p class="total-price">總金額: $<span id="cart-total">0</span></p>
                 <button class="checkout-btn" onclick="generateQR()">產生結帳 QR Code</button>
                 <button class="close-btn" onclick="toggleCart()" style="background:#6c757d; margin-bottom: 5px;">關閉</button>
