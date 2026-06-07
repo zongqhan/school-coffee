@@ -43,6 +43,12 @@
             <option value="coffee">☕ 咖啡飲品</option>
             <option value="dessert">🍰 甜點與輕食</option>
         </select>
+
+        <div style="margin: 15px 0; background: #fdfcf9; padding: 12px; border: 1px solid #eae1d4; border-radius: 8px;">
+            <span style="font-weight: bold; color: #4a3728;">🛠️ 開放客製化設定：</span>
+            <label style="margin-right: 15px;"><input type="checkbox" id="itemIce" style="display:inline; width:auto; margin:0 5px;"> 允許調整冰塊</label>
+            <label><input type="checkbox" id="itemSugar" style="display:inline; width:auto; margin:0 5px;"> 允許調整甜度</label>
+        </div>
         
         <button onclick="addNewItem()">✨ 儲存 / 更新商品資料至雲端</button>
         
@@ -51,6 +57,7 @@
             <thead>
                 <tr>
                     <th>名稱</th>
+                    <th>價格</th>
                     <th>類別</th>
                     <th>庫存</th>
                 </tr>
