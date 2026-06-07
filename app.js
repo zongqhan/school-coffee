@@ -303,3 +303,50 @@ function resetToCartView() {
     document.getElementById('view-cart').style.display = 'block';
     document.getElementById('view-qr').style.display = 'none';
 }
+
+// =================================================================
+// 📱 智慧型自動監聽外掛：專門驅動 Uber 風格底部條 (完全不改動原有核心邏輯)
+// =================================================================
+(function() {
+    function syncUberBar() {
+        const countEl = document.getElementById('cart-count');
+        const totalEl = document.getElementById('cart-total');
+        const uberBar = document.getElementById('uber-cart-bar');
+        const uberCount = document.getElementById('uber-cart-count');
+        const uberTotal = document.getElementById('uber-cart-total');
+
+        if (!countEl || !uberBar) return;
+
+        // 讀取原本購物車的真實數字
+        const count = parseInt(countEl.innerText) || 0;
+
+        // 判斷：如果是手機尺寸 (<=768px) 且 購物車有東西，就優雅現身
+        if (window.innerWidth <= 768 && count > 0) {
+            uberBar.style.display = 'flex';
+            if (uberCount) uberCount.innerText = count;
+            if (uberTotal && totalEl) {
+                // 自動捕捉原本的總金額文字（補上金錢符號）
+                let currentTotal = totalEl.innerText;
+                uberTotal.innerText = currentTotal.includes('$') ? currentTotal : '$' + currentTotal;
+            }
+        } else {
+            // 桌機版或是購物車空了，就隱藏
+            uberBar.style.display = 'none';
+        }
+    }
+
+    // 利用瀏覽器內建的 MutationObserver 監聽器
+    // 只要原本的 HTML「購物車(X)」數字被你原本的程式碼修改，這裡就會「秒同步」觸發
+    const cartObserver = new MutationObserver(syncUberBar);
+    
+    window.addEventListener('load', () => {
+        const targetSpan = document.getElementById('cart-count');
+        if (targetSpan) {
+            // 開始被動監聽數字變化
+            cartObserver.observe(targetSpan, { childList: true, characterData: true, subtree: true });
+        }
+        // 初始化與視窗縮放防禦調整
+        syncUberBar();
+        window.addEventListener('resize', syncUberBar);
+    });
+})();
