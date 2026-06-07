@@ -23,6 +23,11 @@ database.ref('coffeeMenu').on('value', (snapshot) => {
     renderInventory(); 
 });
 
+database.ref('orders').on('value', (snapshot) => {
+    const orders = snapshot.val() || {};
+    renderOrderBoard(orders);
+});
+
 // 3. ⚡ 監聽雲端密碼：將最新密碼顯示在畫面上
 database.ref('merchantPin').on('value', (snapshot) => {
     const pin = snapshot.val() || "8888";
@@ -38,36 +43,85 @@ function renderInventory() {
     const tbody = document.getElementById('inventory-list');
     tbody.innerHTML = '';
     menu.forEach(item => {
-        tbody.innerHTML += `<tr><td>${item.name}</td><td>${item.category}</td><td>${item.stock}</td></tr>`;
+        tbody.innerHTML += `<tr><td>${item.name}</td><td>${item.price}</td><td>${item.category}</td><td>${item.stock}</td></tr>`;
     });
 }
 
 // 5. 新增 / 更新商品 (推播至雲端)
 function addNewItem() {
-    const name = document.getElementById('itemName').value;
+    const name = document.getElementById('itemName').value.trim();
     const price = parseInt(document.getElementById('itemPrice').value);
     const stock = parseInt(document.getElementById('itemStock').value);
     const category = document.getElementById('itemCategory').value;
+    // 抓取勾選狀態
+    const hasIce = document.getElementById('itemIce').checked;
+    const hasSugar = document.getElementById('itemSugar').checked;
 
-    if (!name || isNaN(price)) return alert("請填寫正確資訊");
+    if (!name || isNaN(price) || isNaN(stock)) return alert("請填寫正確且完整的商品資訊");
 
     let menu = [...currentMenu];
     const index = menu.findIndex(i => i.name === name);
 
     if (index !== -1) {
-        menu[index] = { ...menu[index], price, stock, category };
+        // 更新現有商品
+        menu[index] = { ...menu[index], price, stock, category, hasIce, hasSugar };
     } else {
-        menu.push({ id: Date.now(), name, price, stock, category });
+        // 新增全新商品
+        menu.push({ id: Date.now(), name, price, stock, category, hasIce, hasSugar });
     }
 
-    // 將新資料推上 Firebase
     database.ref('coffeeMenu').set(menu).then(() => {
-        alert(`✨ 商品「${name}」已同步至雲端！`);
-        // 清空輸入框
+        alert(`✨ 商品「${name}」已成功同步至雲端！`);
         document.getElementById('itemName').value = '';
         document.getElementById('itemPrice').value = '';
         document.getElementById('itemStock').value = '';
+        document.getElementById('itemIce').checked = false;
+        document.getElementById('itemSugar').checked = false;
     });
+}
+
+function renderOrderBoard(ordersObject) {
+    const board = document.getElementById('order-board');
+    if (!board) return;
+    board.innerHTML = '';
+
+    const orderIds = Object.keys(ordersObject);
+    if (orderIds.length === 0) {
+        board.innerHTML = `<p style="color: #7f8c8d; text-align: center; padding: 20px;">📭 目前暫無新訂單</p>`;
+        return;
+    }
+
+    orderIds.forEach(id => {
+        const order = ordersObject[id];
+        // 解析時間戳記
+        const time = new Date(order.timestamp).toLocaleTimeString();
+        
+        let itemsHtml = order.items.map(item => 
+            `<li style="margin: 4px 0;">👉 <strong>${item.name}</strong> <span style="color:#7f8c8d; font-size:13px;">(${item.customIce || '固定冰'}, ${item.customSugar || '固定糖'})</span></li>`
+        ).join('');
+
+        board.innerHTML += `
+            <div style="background: white; border: 1px solid #eae1d4; padding: 15px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f1ebd9; padding-bottom:8px; margin-bottom:10px;">
+                    <span style="font-weight:bold; color:#a07855;">⏱️ 點單時間：${time}</span>
+                    <span style="background:#e74c3c; color:white; padding:3px 8px; border-radius:4px; font-size:12px; font-weight:bold;">待製作</span>
+                </div>
+                <ul style="padding-left:15px; margin:0 0 12px 0; color:#4a3728;">${itemsHtml}</ul>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <strong style="color:#c0392b; font-size:16px;">總計 TWD $${order.totalPrice}</strong>
+                    <button onclick="completeOrder('${id}')" style="width:auto; margin:0; padding:6px 12px; background:#27ae60; font-size:14px;">✅ 完成出餐</button>
+                </div>
+            </div>
+        `;
+    });
+}
+
+function completeOrder(orderId) {
+    if (confirm("確認該筆訂單已出餐完畢？")) {
+        database.ref(`orders/${orderId}`).remove().then(() => {
+            alert("訂單核銷成功！");
+        });
+    }
 }
 
 // 6. 產生並推播新的動態密碼
