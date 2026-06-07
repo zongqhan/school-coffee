@@ -1,4 +1,3 @@
-// 1. 全域 Firebase 雲端連線設定 (與前台一模一樣)
 const firebaseConfig = {
     apiKey: "AIzaSyAC9mjaOrDCLdzsdcyZyaESO4fWQ57X1TU",
     authDomain: "schoocl-coffee.firebaseapp.com",
@@ -17,56 +16,58 @@ const database = firebase.database();
 
 let currentMenu = [];
 
-// 2. ⚡ 監聽雲端菜單：確保表格永遠顯示最新庫存
 database.ref('coffeeMenu').on('value', (snapshot) => {
     currentMenu = snapshot.val() || [];
     renderInventory(); 
 });
 
-database.ref('orders').on('value', (snapshot) => {
-    const orders = snapshot.val() || {};
-    renderOrderBoard(orders);
-});
-
-// 3. ⚡ 監聽雲端密碼：將最新密碼顯示在畫面上
 database.ref('merchantPin').on('value', (snapshot) => {
     const pin = snapshot.val() || "8888";
-    const pinDisplay = document.getElementById('current-pin');
-    if (pinDisplay) {
-        pinDisplay.innerText = pin;
-    }
+    const pinEl = document.getElementById('current-pin');
+    if (pinEl) pinEl.innerText = pin;
 });
 
-// 4. 渲染庫存表格
+// 渲染現有庫存表格（保留原本價格與格式，加入刪除按鈕）
 function renderInventory() {
-    const menu = currentMenu; 
     const tbody = document.getElementById('inventory-list');
+    if (!tbody) return;
     tbody.innerHTML = '';
-    menu.forEach(item => {
-        tbody.innerHTML += `<tr><td>${item.name}</td><td>${item.price}</td><td>${item.category}</td><td>${item.stock}</td></tr>`;
+
+    currentMenu.forEach(item => {
+        const categoryText = item.category === 'coffee' ? '☕ 咖啡' : '🍰 甜點';
+        tbody.innerHTML += `
+            <tr>
+                <td><strong>${item.name}</strong></td>
+                <td style="color: #b8860b; font-weight: bold;">$${item.price}</td>
+                <td>${categoryText}</td>
+                <td style="font-weight: bold; color: ${item.stock <= 0 ? '#e74c3c' : '#2e7d32'}">${item.stock}</td>
+                <td>
+                    <button class="delete-btn" onclick="deleteItem(${item.id})">🗑️ 刪除</button>
+                </td>
+            </tr>
+        `;
     });
 }
 
-// 5. 新增 / 更新商品 (推播至雲端)
+// 新增 / 更新商品至雲端（完整保留 hasIce, hasSugar 客製化標籤）
 function addNewItem() {
     const name = document.getElementById('itemName').value.trim();
     const price = parseInt(document.getElementById('itemPrice').value);
     const stock = parseInt(document.getElementById('itemStock').value);
     const category = document.getElementById('itemCategory').value;
-    // 抓取勾選狀態
     const hasIce = document.getElementById('itemIce').checked;
     const hasSugar = document.getElementById('itemSugar').checked;
 
-    if (!name || isNaN(price) || isNaN(stock)) return alert("請填寫正確且完整的商品資訊");
+    if (!name || isNaN(price) || isNaN(stock)) {
+        return alert("請填寫正確且完整的商品資訊（品名、價格、庫存）！");
+    }
 
     let menu = [...currentMenu];
     const index = menu.findIndex(i => i.name === name);
 
     if (index !== -1) {
-        // 更新現有商品
         menu[index] = { ...menu[index], price, stock, category, hasIce, hasSugar };
     } else {
-        // 新增全新商品
         menu.push({ id: Date.now(), name, price, stock, category, hasIce, hasSugar });
     }
 
@@ -80,60 +81,22 @@ function addNewItem() {
     });
 }
 
-function renderOrderBoard(ordersObject) {
-    const board = document.getElementById('order-board');
-    if (!board) return;
-    board.innerHTML = '';
+// 刪除商品功能
+function deleteItem(productId) {
+    const targetItem = currentMenu.find(item => item.id === productId);
+    if (!targetItem) return;
 
-    const orderIds = Object.keys(ordersObject);
-    if (orderIds.length === 0) {
-        board.innerHTML = `<p style="color: #7f8c8d; text-align: center; padding: 20px;">📭 目前暫無新訂單</p>`;
-        return;
-    }
-
-    orderIds.forEach(id => {
-        const order = ordersObject[id];
-        // 解析時間戳記
-        const time = new Date(order.timestamp).toLocaleTimeString();
-        
-        let itemsHtml = order.items.map(item => 
-            `<li style="margin: 4px 0;">👉 <strong>${item.name}</strong> <span style="color:#7f8c8d; font-size:13px;">(${item.customIce || '固定冰'}, ${item.customSugar || '固定糖'})</span></li>`
-        ).join('');
-
-        board.innerHTML += `
-            <div style="background: white; border: 1px solid #eae1d4; padding: 15px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
-                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f1ebd9; padding-bottom:8px; margin-bottom:10px;">
-                    <span style="font-weight:bold; color:#a07855;">⏱️ 點單時間：${time}</span>
-                    <span style="background:#e74c3c; color:white; padding:3px 8px; border-radius:4px; font-size:12px; font-weight:bold;">待製作</span>
-                </div>
-                <ul style="padding-left:15px; margin:0 0 12px 0; color:#4a3728;">${itemsHtml}</ul>
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <strong style="color:#c0392b; font-size:16px;">總計 TWD $${order.totalPrice}</strong>
-                    <button onclick="completeOrder('${id}')" style="width:auto; margin:0; padding:6px 12px; background:#27ae60; font-size:14px;">✅ 完成出餐</button>
-                </div>
-            </div>
-        `;
-    });
-}
-
-function completeOrder(orderId) {
-    if (confirm("確認該筆訂單已出餐完畢？")) {
-        database.ref(`orders/${orderId}`).remove().then(() => {
-            alert("訂單核銷成功！");
+    if (confirm(`確定要完全刪除商品「${targetItem.name}」嗎？此動作將同步影響顧客端菜單！`)) {
+        const updatedMenu = currentMenu.filter(item => item.id !== productId);
+        database.ref('coffeeMenu').set(updatedMenu).then(() => {
+            alert(`商品「${targetItem.name}」已成功自雲端刪除！`);
         });
     }
 }
 
-// 6. 產生並推播新的動態密碼
 function generateNewPin() {
     const newPin = Math.floor(1000 + Math.random() * 9000).toString();
-    // 寫入雲端，兩邊的設備會瞬間同步這個新密碼
     database.ref('merchantPin').set(newPin).then(() => {
-        console.log("密碼已於雲端更新");
+        alert(`🔑 密碼已更新為：${newPin}，前台結帳將同步生效！`);
     });
 }
-// 當雲端資料改變，自動執行 renderInventory()
-database.ref('coffeeMenu').on('value', (snapshot) => {
-    currentMenu = snapshot.val();
-    renderInventory(); // 後台表格也會自動更新
-});
