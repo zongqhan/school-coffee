@@ -299,15 +299,71 @@ function merchantVerify() {
         
         const userInput = prompt("【商家專用】請櫃檯人員核對金額後，輸入當前的「動態確認碼」以完成點單：");
         
-        if (userInput === null) return; 
-        
         if (userInput === CURRENT_MERCHANT_PIN) {
-            checkout(); 
-            alert("✨ 驗證成功！已成功建立訂單並同步更新雲端庫存，謝謝光臨。");
-            resetToCartView();
-            toggleCart();
-        } else {
-            alert("❌ 確認碼錯誤！無法結帳，請確認店家最新的動態密碼。");
+            // 重新拉取雲端最新菜單，進行最終 Race Condition 防超賣校驗
+            database.ref('coffeeMenu').once('value').then((snap) => {
+                let menu = snap.val() || [];
+                let isStockValid = true;
+
+                cart.forEach(c => {
+                    let p = menu.find(i => i.id === c.id);
+                    if (!p || p.stock <= 0) isStockValid = false;
+                });
+
+                if (!isStockValid) {
+                    alert("❌ 結帳失敗：部分餐點庫存已被其他顧客搶購一空，請重新選購！");
+                    return;
+                }
+
+                // 驗證通過，扣除實體雲端庫存物件
+                cart.forEach(c => {
+                    let p = menu.find(i => i.id === c.id);
+                    if (p) p.stock--;
+                });
+
+                // =================【關鍵修正位置開始】=================
+                // 1. 在寫入雲端前，立刻先將本地購物車資料「複製備份」出來
+                const tempCart = [...cart]; 
+                
+                // 2. 隨後「立刻清空」本地購物車與計數器，切斷與即時監聽器的觸發衝突
+                cart = []; 
+                document.getElementById('cart-count').innerText = 0;
+                // =================【關鍵修正位置結束】=================
+
+                // 3. 打包全新訂單（使用剛才備份的 tempCart），準備送上雲端 orders 節點
+                const total = parseInt(document.getElementById('cart-total').innerText);
+                const newOrder = {
+                    timestamp: firebase.database.ServerValue.TIMESTAMP, // 伺服器即時時間戳記
+                    items: tempCart, 
+                    totalPrice: total
+                };
+
+                // 4. 將最新庫存同步回 Firebase
+                database.ref('coffeeMenu').set(menu).then(() => {
+                    // 庫存寫入成功後，接著將實體訂單發送給店家後台
+                    return database.ref('orders').push(newOrder);
+                }).then(() => {
+                    alert("🎉 結帳成功！訂單已即時推播至店家廚房看板。");
+                    
+                    // =================【解決右側大留白的關鍵修正】=================
+                    // 1. 直接關閉最外層的購物車側邊欄容器（即可讓右側白邊瞬間消失）
+                    const cartModal = document.getElementById('cart-modal');
+                    if (cartModal) {
+                        cartModal.style.display = 'none';
+                    }
+                    
+                    // 2. 呼叫你們原本內建的還原函數，把內部的 view-cart 秀回來、view-qr 藏起來
+                    // 這樣顧客下一次再次點擊「🛒 購物車」時，才會看到正常的購物車清單，而不是 QR code
+                    resetToCartView();
+                    // =============================================================
+                    
+                }).catch(err => {
+                    console.error("雲端交易失敗:", err);
+                    alert("雲端連線失敗，請檢查網路！");
+                });
+            });
+        } else if (userInput !== null) {
+            alert("❌ 驗證碼錯誤！請向櫃檯人員確認管理後台當前密碼。");
         }
     });
 }
