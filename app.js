@@ -34,7 +34,7 @@ database.ref('coffeeMenu').on('value', (snapshot) => {
     }
 });
 
-// 3. 渲染前台商品畫面（原版邏輯 100% 搬回，不更動剩餘庫存計算與客製化標籤）
+// 3. 渲染前台商品畫面
 function renderProducts() {
     const coffeeList = document.getElementById('coffee-list');
     const dessertList = document.getElementById('dessert-list');
@@ -46,12 +46,12 @@ function renderProducts() {
     dessertList.innerHTML = '';
 
     currentMenu.forEach(product => {
-        // 原版剩餘品項有效庫存邏輯：總庫存扣除該商品在購物車內的數量
+        // 剩餘品項有效庫存邏輯：總庫存扣除該商品在購物車內的數量
         const inCartCount = cart.filter(item => item.id === product.id).length;
         const availableStock = product.stock - inCartCount;
         const isOutOfStock = availableStock <= 0;
 
-        // 原版客製化下拉選單邏輯
+        // 客製化下拉選單邏輯
         let iceSelectHtml = product.hasIce ? `
             <select id="ice-${product.id}" style="padding:5px; margin:5px 0; font-size:13px; width:100%; border-radius:4px; border:1px solid #ccc;">
                 <option value="正常冰">正常冰</option>
@@ -70,7 +70,7 @@ function renderProducts() {
             </select>
         ` : '';
 
-        // 組裝商品卡片，僅在按鈕上方新增「數量選擇框」
+        // 組裝商品卡片
         const html = `
             <div class="product-card">
                 <h3>${product.name}</h3>
@@ -136,19 +136,17 @@ function toggleCart() {
     if (modal.style.display === 'block') updateCartUI();
 }
 
-// 6. 更新購物車內容與總金額 (修復語法錯誤，並支援顯示冰塊甜度)
+// 6. 更新購物車內容與總金額
 function updateCartUI() {
     const list = document.getElementById('cart-items');
     const totalEl = document.getElementById('cart-total');
     
-    // 如果購物車視窗沒打開，就不執行，避免報錯
     if (!list || !totalEl) return;
     
     list.innerHTML = '';
     let total = 0;
 
     cart.forEach(item => {
-        // 組合客製化標籤 (如果有選冰塊甜度的話)
         let customText = "";
         if (item.ice || item.sugar) {
             customText = `(${item.ice || ''}${item.ice && item.sugar ? '/' : ''}${item.sugar || ''})`;
@@ -159,11 +157,10 @@ function updateCartUI() {
     });
     
     totalEl.innerText = total;
-    // 確保購物車數量圖示也有同步
     document.getElementById('cart-count').innerText = cart.length;
 }
 
-// 7. 加入購物車 (更名為 processAddToCart，並支援數量與客製化選項)
+// 7. 加入購物車
 function processAddToCart(productId) {
     const product = currentMenu.find(p => p.id === productId);
     
@@ -172,35 +169,27 @@ function processAddToCart(productId) {
         return;
     }
 
-    // 抓取顧客選擇的數量 (如果找不到欄位，預設為 1)
     const qtyInput = document.getElementById(`qty-${productId}`);
     const qty = qtyInput ? parseInt(qtyInput.value) : 1;
 
-    // 抓取冰塊與甜度 (如果有的話)
     const iceSelect = document.getElementById(`ice-${productId}`);
     const sugarSelect = document.getElementById(`sugar-${productId}`);
     const ice = iceSelect ? iceSelect.value : null;
     const sugar = sugarSelect ? sugarSelect.value : null;
 
-    // 依照顧客輸入的數量，將商品推入購物車
     for (let i = 0; i < qty; i++) {
-        // 將冰塊與甜度附加到商品物件上再塞入車子
         cart.push({ ...product, ice: ice, sugar: sugar });
     }
     
-    // 更新右上角購物車計數
     document.getElementById('cart-count').innerText = cart.length;
     
-    // 立刻呼叫 UI 更新，確保金額刷新
     updateCartUI(); 
-    
-    // 重新渲染畫面，讓「剩餘有效庫存」的數字立刻扣除
     renderProducts();
 
     alert(`已加入 ${qty} 份: ${product.name}`);
 }
 
-// 8. 結帳扣庫存 (結帳後自動清空並更新 UI)
+// 8. 結帳扣庫存
 function checkout() {
     if (cart.length === 0) return;
     
@@ -211,12 +200,13 @@ function checkout() {
     });
     
     database.ref('coffeeMenu').set(menu).then(() => {
-        cart = []; // 清空購物車陣列
+        cart = []; 
         document.getElementById('cart-count').innerText = 0;
-        updateCartUI(); // 🔥 結帳後將購物車畫面歸零
+        updateCartUI(); 
         alert("✨ 訂單已建立，庫存已更新！");
     });
 }
+
 // 9. 產生 QR Code 
 function generateQR() {
     if (cart.length === 0) return alert("購物車空的喔！");
@@ -244,7 +234,6 @@ function merchantVerify() {
                 let menu = snap.val() || [];
                 let isStockValid = true;
 
-                // 防超賣校驗
                 cart.forEach(c => {
                     let p = menu.find(i => i.id === c.id);
                     if (!p || p.stock <= 0) isStockValid = false;
@@ -255,26 +244,22 @@ function merchantVerify() {
                     return;
                 }
 
-                // 扣除實體雲端庫存物件
                 cart.forEach(c => {
                     let p = menu.find(i => i.id === c.id);
                     if (p) p.stock--;
                 });
 
-                // 🌟 【本次新增】：將結帳後的訂單資料獨立存入雲端訂單區
                 const newOrder = {
                     id: Date.now(),
                     time: new Date().toLocaleString('zh-TW', { hour12: false }),
-                    items: cart, // 包含品名、冰塊、甜度
+                    items: cart, 
                     total: document.getElementById('cart-total').innerText
                 };
-                database.ref('orders').push(newOrder); // 推播到 Firebase
+                database.ref('orders').push(newOrder); 
 
-                // 【狀態預先解耦】：寫入雲端前立刻清空購物車
                 cart = []; 
                 document.getElementById('cart-count').innerText = 0;
 
-                // 同步回 Firebase 實時資料庫
                 database.ref('coffeeMenu').set(menu).then(() => {
                     alert("🎉 結帳成功！訂單已推播至店家後台，庫存已更新。");
                     
@@ -301,7 +286,7 @@ function resetToCartView() {
 }
 
 // =================================================================
-// 📱 智慧型自動監聽外掛：專門驅動 Uber 風格底部條 (完全不改動原有核心邏輯)
+// 📱 智慧型自動監聽外掛：專門驅動 Uber 風格底部條
 // =================================================================
 (function() {
     function syncUberBar() {
@@ -313,35 +298,27 @@ function resetToCartView() {
 
         if (!countEl || !uberBar) return;
 
-        // 讀取原本購物車的真實數字
         const count = parseInt(countEl.innerText) || 0;
 
-        // 判斷：如果是手機尺寸 (<=768px) 且 購物車有東西，就優雅現身
         if (window.innerWidth <= 768 && count > 0) {
             uberBar.style.display = 'flex';
             if (uberCount) uberCount.innerText = count;
             if (uberTotal && totalEl) {
-                // 自動捕捉原本的總金額文字（補上金錢符號）
                 let currentTotal = totalEl.innerText;
                 uberTotal.innerText = currentTotal.includes('$') ? currentTotal : '$' + currentTotal;
             }
         } else {
-            // 桌機版或是購物車空了，就隱藏
             uberBar.style.display = 'none';
         }
     }
 
-    // 利用瀏覽器內建的 MutationObserver 監聽器
-    // 只要原本的 HTML「購物車(X)」數字被你原本的程式碼修改，這裡就會「秒同步」觸發
     const cartObserver = new MutationObserver(syncUberBar);
     
     window.addEventListener('load', () => {
         const targetSpan = document.getElementById('cart-count');
         if (targetSpan) {
-            // 開始被動監聽數字變化
             cartObserver.observe(targetSpan, { childList: true, characterData: true, subtree: true });
         }
-        // 初始化與視窗縮放防禦調整
         syncUberBar();
         window.addEventListener('resize', syncUberBar);
     });
