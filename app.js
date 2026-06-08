@@ -136,39 +136,31 @@ function toggleCart() {
     if (modal.style.display === 'block') updateCartUI();
 }
 
-// 6. 更新購物車 UI (100% 沿用原版結構呈現)
+// 6. 更新購物車內容與總金額 (確保這段程式碼與你的 HTML ID 一致)
 function updateCartUI() {
     const list = document.getElementById('cart-items');
     const totalEl = document.getElementById('cart-total');
+    
+    // 如果購物車視窗沒打開，就不執行，避免報錯
     if (!list || !totalEl) return;
-
+    
     list.innerHTML = '';
     let total = 0;
 
-    cart.forEach((item, index) => {
+    cart.forEach(item => {
+        list.innerHTML += `<li>${item.name} - $${item.price}</li>`;
         total += item.price;
-        list.innerHTML += `
-            <li style="display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #eee;">
-                <div>
-                    <strong>${item.name}</strong> <br>
-                    <span style="font-size: 11px; color: #888;">(${item.ice}, ${item.sugar})</span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <span>$${item.price}</span>
-                    <button onclick="removeFromCart(${index})" style="background: #e74c3c; color: white; border: none; padding: 3px 8px; border-radius: 4px; cursor: pointer; width: auto; margin-top: 0; font-size: 12px;">移除</button>
-                </div>
-            </li>
-        `;
     });
+    totalEl.innerText = total;
+}
 
     totalEl.innerText = total;
     document.getElementById('cart-count').innerText = cart.length;
 }
 
-// 7. 加入購物車 (新增這行：呼叫 updateCartUI)
+// 7. 加入購物車 (確保點擊時會刷新畫面)
 function addToCart(productId) {
-    const menu = currentMenu; 
-    const product = menu.find(p => p.id === productId);
+    const product = currentMenu.find(p => p.id === productId);
     
     if (product.stock <= 0) {
         alert("非常抱歉，該商品已無庫存！");
@@ -176,33 +168,29 @@ function addToCart(productId) {
     }
     cart.push(product);
     
-    // 更新頂部顯示的數量
+    // 更新右上角購物車計數
     document.getElementById('cart-count').innerText = cart.length;
     
-    // 🔥 關鍵：加入後立刻更新購物車內容與金額
+    // 🔥 關鍵修正：加入後立刻呼叫 UI 更新，金額就會出現了
     updateCartUI(); 
     
     alert(`已加入: ${product.name}`);
 }
 
-// 8. 結帳扣庫存 (確保結帳後重置 UI)
+// 8. 結帳扣庫存 (結帳後自動清空並更新 UI)
 function checkout() {
     if (cart.length === 0) return;
     
     let menu = [...currentMenu];
-    
     cart.forEach(c => {
         let p = menu.find(i => i.id === c.id);
         if (p && p.stock > 0) p.stock--;
     });
     
     database.ref('coffeeMenu').set(menu).then(() => {
-        cart = []; 
+        cart = []; // 清空購物車陣列
         document.getElementById('cart-count').innerText = 0;
-        
-        // 🔥 關鍵：結帳完成後，強制更新一次購物車顯示畫面
-        updateCartUI(); 
-        
+        updateCartUI(); // 🔥 結帳後將購物車畫面歸零
         alert("✨ 訂單已建立，庫存已更新！");
     });
 }
