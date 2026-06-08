@@ -11,13 +11,14 @@ button:hover { background: #5d4037; }
 .modal { position: fixed; top: 0; right: 0; width: 300px; height: 100%; background: #fff; box-shadow: -2px 0 10px rgba(0,0,0,0.2); z-index: 1000; padding: 20px; }
 .modal-content { display: flex; flex-direction: column; height: 100%; }
 .total-price { font-size: 1.2em; font-weight: bold; color: #5d4037; margin-top: auto; }
+
 /* 商品卡片基礎美化 */
 .product-card {
     background: white;
     border: 1px solid #e0e0e0;
     border-radius: 8px;
     padding: 16px;
-    width: 200px; /* 固定寬度，讓卡片整齊排列 */
+    width: 200px; 
     box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     text-align: center;
     box-sizing: border-box;
@@ -52,10 +53,9 @@ button:hover { background: #5d4037; }
 }
 
 /* =========================================
-   📱 手機版專屬優化 (當螢幕寬度小於 768px 時觸發)
+   📱 手機版專屬優化
    ========================================= */
 @media screen and (max-width: 768px) {
-    /* 1. 調整頂部導覽列，稍微縮小間距 */
     header {
         flex-direction: column;
         gap: 10px;
@@ -64,10 +64,8 @@ button:hover { background: #5d4037; }
     }
     header h1 { font-size: 20px; margin: 0; }
     
-    /* 隱藏原本頂部右邊的購物車按鈕，因為我們要改用底部懸浮條，畫面才乾淨 */
     #cart-summary { display: none !important; }
 
-    /* 2. 商品網格：在手機上變成精緻雙排 */
     .grid-container {
         grid-template-columns: repeat(auto-fill, minmax(145px, 1fr)); 
         gap: 12px;
@@ -75,15 +73,14 @@ button:hover { background: #5d4037; }
     }
     .product-card { padding: 12px; }
 
-    /* 3. 🌟 【高階優化】讓購物車 Modal 在手機上變成 Uber 風格的「底部置底抽屜」 */
     .modal {
         width: 100% !important;
         max-width: 100% !important;
-        height: 80% !important; /* 佔據螢幕下方 80% 的高度 */
+        height: 80% !important; 
         top: auto !important;
         bottom: 0 !important;
         right: 0 !important;
-        border-radius: 24px 24px 0 0 !important; /* 上方圓角 */
+        border-radius: 24px 24px 0 0 !important; 
         box-shadow: 0 -10px 30px rgba(0,0,0,0.15) !important;
         box-sizing: border-box;
         padding: 25px 20px 20px 20px;
@@ -94,25 +91,24 @@ button:hover { background: #5d4037; }
         to { transform: translateY(0); }
     }
 
-    /* 4. 🌟 Uber 懸浮結帳條本體美化 */
     #uber-cart-bar {
         position: fixed;
-        bottom: 25px; /* 懸浮在手機底部上方 */
+        bottom: 25px; 
         left: 5%;
         width: 90%;
-        background: #5d4037; /* 使用你原本精緻的咖啡深褐色 */
+        background: #5d4037; 
         color: white;
         padding: 15px 20px;
         border-radius: 14px;
         box-shadow: 0 8px 25px rgba(93, 64, 55, 0.35);
         z-index: 999;
         box-sizing: border-box;
-        display: none; /* 預設隱藏，由 JS 有東西時才驅動顯示 */
+        display: none; 
         cursor: pointer;
         transition: transform 0.1s ease;
     }
     #uber-cart-bar:active {
-        transform: scale(0.96); /* 點擊時有下壓反饋感 */
+        transform: scale(0.96); 
     }
     .uber-cart-content {
         display: flex;
@@ -140,6 +136,5 @@ button:hover { background: #5d4037; }
         font-size: 18px;
     }
     
-    /* 放大手機按鈕防誤觸 */
     button { min-height: 44px; font-size: 15px; }
 }
