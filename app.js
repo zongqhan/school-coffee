@@ -165,62 +165,47 @@ function updateCartUI() {
     document.getElementById('cart-count').innerText = cart.length;
 }
 
-// 7. 新增優化：大量下單外包循環函數（不改動原 addToCart 的安全做法）
-function processAddToCart(productId) {
-    const product = currentMenu.find(p => p.id === productId);
-    const qtyInput = document.getElementById(`qty-${productId}`);
-    const buyCount = qtyInput ? parseInt(qtyInput.value) : 1;
-
-    if (isNaN(buyCount) || buyCount <= 0) {
-        alert("請輸入有效的購買數量！");
-        return;
-    }
-
-    // 檢查總量是否會爆庫存
-    const inCartCount = cart.filter(item => item.id === productId).length;
-    if (inCartCount + buyCount > product.stock) {
-        alert(`❌ 超出有效庫存！目前購物車已有 ${inCartCount} 件，雲端總庫存僅剩 ${product.stock} 件，無法一次加入 ${buyCount} 件。`);
-        return;
-    }
-
-    // 利用迴圈，幫使用者連續呼叫原本的「加入購物車」
-    for (let i = 0; i < buyCount; i++) {
-        addToCart(productId);
-    }
-
-    alert(`🎉 成功將 ${buyCount} 份「${product.name}」加入購物車！`);
-    if (qtyInput) qtyInput.value = 1; // 復原為1
-}
-
-// 100% 原版一模一樣的單杯加入邏輯（確保客製化選項能精準撈到）
+// 7. 加入購物車 (新增這行：呼叫 updateCartUI)
 function addToCart(productId) {
-    const product = currentMenu.find(p => p.id === productId);
+    const menu = currentMenu; 
+    const product = menu.find(p => p.id === productId);
     
-    const iceEl = document.getElementById(`ice-${productId}`);
-    const sugarEl = document.getElementById(`sugar-${productId}`);
+    if (product.stock <= 0) {
+        alert("非常抱歉，該商品已無庫存！");
+        return;
+    }
+    cart.push(product);
     
-    const iceSelection = iceEl ? iceEl.value : "固定冰量";
-    const sugarSelection = sugarEl ? sugarEl.value : "固定甜度";
-
-    cart.push({
-        id: product.id,
-        name: product.name,
-        price: product.price,
-        ice: iceSelection,
-        sugar: sugarSelection
-    });
-
+    // 更新頂部顯示的數量
     document.getElementById('cart-count').innerText = cart.length;
-    renderProducts();
+    
+    // 🔥 關鍵：加入後立刻更新購物車內容與金額
+    updateCartUI(); 
+    
+    alert(`已加入: ${product.name}`);
 }
 
-// 8. 從購物車單筆移除商品
-function removeFromCart(index) {
-    cart.splice(index, 1);
-    updateCartUI();
-    renderProducts();
+// 8. 結帳扣庫存 (確保結帳後重置 UI)
+function checkout() {
+    if (cart.length === 0) return;
+    
+    let menu = [...currentMenu];
+    
+    cart.forEach(c => {
+        let p = menu.find(i => i.id === c.id);
+        if (p && p.stock > 0) p.stock--;
+    });
+    
+    database.ref('coffeeMenu').set(menu).then(() => {
+        cart = []; 
+        document.getElementById('cart-count').innerText = 0;
+        
+        // 🔥 關鍵：結帳完成後，強制更新一次購物車顯示畫面
+        updateCartUI(); 
+        
+        alert("✨ 訂單已建立，庫存已更新！");
+    });
 }
-
 // 9. 產生 QR Code 
 function generateQR() {
     if (cart.length === 0) return alert("購物車空的喔！");
