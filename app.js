@@ -46,12 +46,12 @@ function renderProducts() {
     dessertList.innerHTML = '';
 
     currentMenu.forEach(product => {
-        // 剩餘品項有效庫存邏輯：總庫存扣除該商品在購物車內的數量
+        // 原版剩餘品項有效庫存邏輯：總庫存扣除該商品在購物車內的數量
         const inCartCount = cart.filter(item => item.id === product.id).length;
         const availableStock = product.stock - inCartCount;
         const isOutOfStock = availableStock <= 0;
 
-        // 客製化下拉選單邏輯
+        // 原版客製化下拉選單邏輯
         let iceSelectHtml = product.hasIce ? `
             <select id="ice-${product.id}" style="padding:5px; margin:5px 0; font-size:13px; width:100%; border-radius:4px; border:1px solid #ccc;">
                 <option value="正常冰">正常冰</option>
@@ -136,7 +136,7 @@ function toggleCart() {
     if (modal.style.display === 'block') updateCartUI();
 }
 
-// 6. 更新購物車內容與總金額
+// 6. 更新購物車內容與總金額 (🌟已補上精美刪除按鈕❌與彈性排版)
 function updateCartUI() {
     const list = document.getElementById('cart-items');
     const totalEl = document.getElementById('cart-total');
@@ -146,18 +146,34 @@ function updateCartUI() {
     list.innerHTML = '';
     let total = 0;
 
-    cart.forEach(item => {
+    cart.forEach((item, index) => {
+        // 組合客製化標籤
         let customText = "";
         if (item.ice || item.sugar) {
             customText = `(${item.ice || ''}${item.ice && item.sugar ? '/' : ''}${item.sugar || ''})`;
         }
         
-        list.innerHTML += `<li>${item.name} ${customText} - $${item.price}</li>`;
+        // 透過 Flex 讓名字在左邊，刪除按鈕在右邊，排版更整齊漂亮
+        list.innerHTML += `
+            <li style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px dashed #efebe9; font-size: 14px;">
+                <span style="max-width: 80%; text-align: left;">${item.name} ${customText} - $${item.price}</span>
+                <button onclick="removeFromCart(${index})" style="width: auto; margin-top: 0; background: #db4437; color: white; border: none; padding: 2px 8px; border-radius: 4px; font-size: 11px; cursor: pointer;">❌</button>
+            </li>
+        `;
         total += item.price;
     });
     
     totalEl.innerText = total;
     document.getElementById('cart-count').innerText = cart.length;
+}
+
+// 🌟【新增功能】從購物車中移除指定項目，並立刻回補前台有效庫存顯示
+function removeFromCart(index) {
+    if (index > -1 && index < cart.length) {
+        cart.splice(index, 1); // 從陣列中剔除該筆資料
+        updateCartUI();        // 刷新購物車彈窗內容
+        renderProducts();      // 刷新前台商品卡片的「剩餘有效庫存」
+    }
 }
 
 // 7. 加入購物車
@@ -214,7 +230,7 @@ function generateQR() {
     document.getElementById('view-cart').style.display = 'none';
     document.getElementById('view-qr').style.display = 'block';
 
-    const itemsText = cart.map(item => `${item.name}(${item.ice}/${item.sugar})`).join(", ");
+    const itemsText = cart.map(item => `${item.name}(${item.ice || '無'}/${item.sugar || '無'})`).join(", ");
     const total = document.getElementById('cart-total').innerText;
     const qrData = `咖啡廳訂單 - 內容: ${itemsText} | 總金額: $${total}`;
     
