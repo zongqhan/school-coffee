@@ -136,7 +136,7 @@ function toggleCart() {
     if (modal.style.display === 'block') updateCartUI();
 }
 
-// 6. 更新購物車內容與總金額 (確保這段程式碼與你的 HTML ID 一致)
+// 6. 更新購物車內容與總金額 (修復語法錯誤，並支援顯示冰塊甜度)
 function updateCartUI() {
     const list = document.getElementById('cart-items');
     const totalEl = document.getElementById('cart-total');
@@ -148,33 +148,56 @@ function updateCartUI() {
     let total = 0;
 
     cart.forEach(item => {
-        list.innerHTML += `<li>${item.name} - $${item.price}</li>`;
+        // 組合客製化標籤 (如果有選冰塊甜度的話)
+        let customText = "";
+        if (item.ice || item.sugar) {
+            customText = `(${item.ice || ''}${item.ice && item.sugar ? '/' : ''}${item.sugar || ''})`;
+        }
+        
+        list.innerHTML += `<li>${item.name} ${customText} - $${item.price}</li>`;
         total += item.price;
     });
+    
     totalEl.innerText = total;
-}
-
-    totalEl.innerText = total;
+    // 確保購物車數量圖示也有同步
     document.getElementById('cart-count').innerText = cart.length;
 }
 
-// 7. 加入購物車 (確保點擊時會刷新畫面)
-function addToCart(productId) {
+// 7. 加入購物車 (更名為 processAddToCart，並支援數量與客製化選項)
+function processAddToCart(productId) {
     const product = currentMenu.find(p => p.id === productId);
     
-    if (product.stock <= 0) {
+    if (!product || product.stock <= 0) {
         alert("非常抱歉，該商品已無庫存！");
         return;
     }
-    cart.push(product);
+
+    // 抓取顧客選擇的數量 (如果找不到欄位，預設為 1)
+    const qtyInput = document.getElementById(`qty-${productId}`);
+    const qty = qtyInput ? parseInt(qtyInput.value) : 1;
+
+    // 抓取冰塊與甜度 (如果有的話)
+    const iceSelect = document.getElementById(`ice-${productId}`);
+    const sugarSelect = document.getElementById(`sugar-${productId}`);
+    const ice = iceSelect ? iceSelect.value : null;
+    const sugar = sugarSelect ? sugarSelect.value : null;
+
+    // 依照顧客輸入的數量，將商品推入購物車
+    for (let i = 0; i < qty; i++) {
+        // 將冰塊與甜度附加到商品物件上再塞入車子
+        cart.push({ ...product, ice: ice, sugar: sugar });
+    }
     
     // 更新右上角購物車計數
     document.getElementById('cart-count').innerText = cart.length;
     
-    // 🔥 關鍵修正：加入後立刻呼叫 UI 更新，金額就會出現了
+    // 立刻呼叫 UI 更新，確保金額刷新
     updateCartUI(); 
     
-    alert(`已加入: ${product.name}`);
+    // 重新渲染畫面，讓「剩餘有效庫存」的數字立刻扣除
+    renderProducts();
+
+    alert(`已加入 ${qty} 份: ${product.name}`);
 }
 
 // 8. 結帳扣庫存 (結帳後自動清空並更新 UI)
